@@ -1,0 +1,153 @@
+package 학사관리프로젝트;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dialog;
+import java.awt.Font;
+import java.awt.Frame;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import javax.swing.ButtonGroup;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JRadioButton;
+import javax.swing.JTextField;
+
+public final class StudentRegistrationDialog extends JDialog {
+    private final StudentManagement manager;
+    private final JTextField studentCode = new JTextField(24);
+    private final JTextField studentName = new JTextField(24);
+    private final JTextField birthDate = new JTextField(24);
+    private final JTextField address = new JTextField(24);
+    private final JTextField mobileFirst = new JTextField(6);
+    private final JTextField mobileSecond = new JTextField(8);
+    private final JTextField mobileThird = new JTextField(8);
+    private final JTextField phoneFirst = new JTextField(6);
+    private final JTextField phoneSecond = new JTextField(8);
+    private final JTextField phoneThird = new JTextField(8);
+    private final JTextField admissionYear = new JTextField(24);
+    private final JComboBox<String> department = new JComboBox<>();
+    private final JRadioButton male = new JRadioButton("남성");
+    private final JRadioButton female = new JRadioButton("여성");
+
+    public StudentRegistrationDialog(StudentManagement manager) throws SQLException {
+        super((Frame) manager.getDialogOwnerFrame(), "새 학생 등록", Dialog.ModalityType.APPLICATION_MODAL);
+        this.manager = manager;
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        setSize(780, 580);
+        setResizable(false);
+        setLayout(new BorderLayout(12, 12));
+        studentCode.setText(manager.nextStudentCode());
+        studentCode.setEditable(false);
+
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setBorder(javax.swing.BorderFactory.createEmptyBorder(18, 24, 12, 24));
+        addRow(form, 0, "학번 (자동 부여)", studentCode);
+        addRow(form, 1, "이름", studentName);
+        addRow(form, 2, "생년월일 (YYYY-MM-DD)", birthDate);
+        addRow(form, 3, "주소", address);
+        addRow(form, 4, "휴대폰번호", phoneParts(mobileFirst, mobileSecond, mobileThird));
+        addRow(form, 5, "전화번호 (선택)", phoneParts(phoneFirst, phoneSecond, phoneThird));
+        addRow(form, 6, "입학년도", admissionYear);
+        addRow(form, 7, "학과", department);
+        JPanel genders = new JPanel();
+        ButtonGroup genderGroup = new ButtonGroup();
+        genderGroup.add(male); genderGroup.add(female);
+        genders.add(male); genders.add(female);
+        addRow(form, 8, "성별", genders);
+        loadDepartments();
+        Font font = UiFonts.font(Font.PLAIN, 14);
+        for (java.awt.Component component : form.getComponents()) component.setFont(font);
+
+        JButton register = new JButton("등록하기");
+        JButton cancel = new JButton("취소");
+        for (JButton button : new JButton[]{register, cancel}) {
+            button.setFont(font);
+            button.setBackground(new Color(234, 206, 202));
+            button.setForeground(new Color(105, 100, 107));
+        }
+        JPanel buttons = new JPanel(); buttons.add(register); buttons.add(cancel);
+        add(form, BorderLayout.CENTER);
+        add(buttons, BorderLayout.SOUTH);
+        register.addActionListener(event -> registerStudent());
+        cancel.addActionListener(event -> dispose());
+        setLocationRelativeTo(manager.getDialogOwnerFrame());
+    }
+
+    private JPanel phoneParts(JTextField first, JTextField second, JTextField third) {
+        JPanel panel = new JPanel();
+        panel.add(first); panel.add(new JLabel("-"));
+        panel.add(second); panel.add(new JLabel("-")); panel.add(third);
+        return panel;
+    }
+
+    private void addRow(JPanel form, int row, String labelText, java.awt.Component field) {
+        GridBagConstraints label = new GridBagConstraints();
+        label.gridx = 0; label.gridy = row; label.anchor = GridBagConstraints.LINE_END;
+        label.insets = new Insets(5, 5, 5, 12);
+        form.add(new JLabel(labelText), label);
+        GridBagConstraints input = new GridBagConstraints();
+        input.gridx = 1; input.gridy = row; input.weightx = 1;
+        input.fill = GridBagConstraints.HORIZONTAL; input.insets = new Insets(5, 5, 5, 5);
+        form.add(field, input);
+    }
+
+    private void loadDepartments() throws SQLException {
+        department.addItem("학과 선택");
+        try (PreparedStatement statement = DatabaseConnection.getConnection().prepareStatement(
+                "SELECT department_name FROM department ORDER BY department_cd");
+             ResultSet rows = statement.executeQuery()) {
+            while (rows.next()) department.addItem(rows.getString(1));
+        }
+    }
+
+    private void registerStudent() {
+        String[][] required = {
+                {studentCode.getText(), "학번이 입력되지 않았습니다!"},
+                {studentName.getText(), "이름이 입력되지 않았습니다!"},
+                {birthDate.getText(), "생년월일이 입력되지 않았습니다!"},
+                {address.getText(), "주소가 입력되지 않았습니다!"},
+                {mobileFirst.getText(), "휴대폰번호가 입력되지 않았습니다!"},
+                {mobileSecond.getText(), "휴대폰번호가 입력되지 않았습니다!"},
+                {mobileThird.getText(), "휴대폰번호가 입력되지 않았습니다!"},
+                {admissionYear.getText(), "입학년도가 입력되지 않았습니다!"},
+                {department.getSelectedIndex() <= 0 ? "" : "selected", "학과가 입력되지 않았습니다!"},
+                {male.isSelected() || female.isSelected() ? "selected" : "", "성별이 입력되지 않았습니다!"}
+        };
+        for (String[] field : required) {
+            if (field[0].trim().isEmpty()) {
+                JOptionPane.showMessageDialog(this, field[1], "필수 입력", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+        }
+        String code = studentCode.getText().trim();
+        if (!code.matches("s\\d{1,3}")) {
+            JOptionPane.showMessageDialog(this, "학번은 소문자 s 다음에 숫자 1~3자리로 입력하세요.", "학번 형식", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        boolean anyPhone = !phoneFirst.getText().isBlank() || !phoneSecond.getText().isBlank() || !phoneThird.getText().isBlank();
+        boolean allPhone = !phoneFirst.getText().isBlank() && !phoneSecond.getText().isBlank() && !phoneThird.getText().isBlank();
+        if (anyPhone && !allPhone) {
+            JOptionPane.showMessageDialog(this, "전화번호를 모두 입력하거나 비워주세요.", "전화번호", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        String mobile = mobileFirst.getText().trim() + "-" + mobileSecond.getText().trim() + "-" + mobileThird.getText().trim();
+        String phone = allPhone ? phoneFirst.getText().trim() + "-" + phoneSecond.getText().trim() + "-" + phoneThird.getText().trim() : "";
+        boolean registered = manager.registerStudent(code, studentName.getText(), birthDate.getText(),
+                address.getText(), mobile, phone, admissionYear.getText(),
+                (String) department.getSelectedItem(), male.isSelected() ? "남성" : "여성");
+        if (registered) {
+            JOptionPane.showMessageDialog(this, "학생 정보가 등록되었습니다.", "등록", JOptionPane.INFORMATION_MESSAGE);
+            dispose();
+        }
+    }
+}
+
