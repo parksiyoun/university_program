@@ -53,7 +53,7 @@ Java Swing 화면 → JDBC → MySQL
 
 테이블과 샘플 데이터는 [university_full.sql](database/university_full.sql)에서 확인할 수 있습니다.
 
-## 보안 보완
+## 보안
 
 - 각 화면의 실행 진입점을 로그인 화면으로 연결
 - 비밀번호를 PBKDF2 해시로 저장하고, 무작위 임시 비밀번호와 최초 로그인 시 변경 적용
